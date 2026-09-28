@@ -11,6 +11,7 @@ from jose import jwt
 
 from app.core.config import get_settings
 from app.core.security import create_token, decode_token
+from app.models.user import User
 
 
 @pytest.fixture()
@@ -61,54 +62,6 @@ def test_create_token_carries_is_admin_claim_and_decode_keeps_sub():
 
 def test_old_create_token_call_still_valid():
     assert decode_token(create_token("7")) == "7"
-
-
-def test_admin_user_allowed_on_guard(client: TestClient, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("ADMIN_EMAILS", "boss@x.com")
-    assert client.post(
-        "/auth/signup/",
-        json={"name": "Boss", "email": "Boss@X.com ", "password": "secret123"},
-    ).status_code == 201  # grant-at-signup normalizes strip/lower
-    r = client.post("/auth/login/", data={"username": "boss@x.com", "password": "secret123"})
-    assert r.status_code == 200
-    client.headers.update({"Authorization": f"Bearer {r.json()['access_token']}"})
-    assert client.get("/admin/bookings").status_code == 200
-
-
-def test_reconcile_at_login_promotes_existing_user(client: TestClient, monkeypatch: pytest.MonkeyPatch):
-    client.post(
-        "/auth/signup/",
-        json={"name": "Pre", "email": "pre@x.com", "password": "secret123"},
-    )
-    r = client.post("/auth/login/", data={"username": "pre@x.com", "password": "secret123"})
-    assert client.get(
-        "/admin/bookings", headers={"Authorization": f"Bearer {r.json()['access_token']}"}
-    ).status_code == 403
-    monkeypatch.setenv("ADMIN_EMAILS", " pre@X.com ")
-    r2 = client.post("/auth/login/", data={"username": "pre@x.com", "password": "secret123"})
-    assert r2.status_code == 200
-    assert jwt.get_unverified_claims(r2.json()["access_token"])["is_admin"] is True
-    client.headers.update({"Authorization": f"Bearer {r2.json()['access_token']}"})
-    assert client.get("/admin/bookings").status_code == 200
-
-
-def test_reconcile_at_login_demotes_removed_admin(client: TestClient, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("ADMIN_EMAILS", "gone@x.com")
-    assert client.post(
-        "/auth/signup/",
-        json={"name": "Gone", "email": "gone@x.com", "password": "secret123"},
-    ).status_code == 201
-    r = client.post("/auth/login/", data={"username": "gone@x.com", "password": "secret123"})
-    assert r.status_code == 200
-    assert jwt.get_unverified_claims(r.json()["access_token"])["is_admin"] is True
-    client.headers.update({"Authorization": f"Bearer {r.json()['access_token']}"})
-    assert client.get("/admin/bookings").status_code == 200
-    monkeypatch.setenv("ADMIN_EMAILS", "")
-    r2 = client.post("/auth/login/", data={"username": "gone@x.com", "password": "secret123"})
-    assert r2.status_code == 200
-    assert jwt.get_unverified_claims(r2.json()["access_token"])["is_admin"] is False
-    client.headers.update({"Authorization": f"Bearer {r2.json()['access_token']}"})
-    assert client.get("/admin/bookings").status_code == 403
 
 
 def test_guard_reads_db_not_claim(client: TestClient):
@@ -251,8 +204,7 @@ def _seed_ids() -> dict[str, int]:
 
 
 @pytest.fixture()
-def admin_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    monkeypatch.setenv("ADMIN_EMAILS", "boss@x.com")
+def admin_client(client: TestClient) -> TestClient:
     from app.seed import seed_db
     from tests.conftest import _TestingSession
 
@@ -261,8 +213,18 @@ def admin_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestCli
         seed_db(db)
     finally:
         db.close()
-    token = _signup_login(client, "Boss", "boss@x.com")
-    client.headers.update({"Authorization": f"Bearer {token}"})
+    _signup_login(client, "Boss", "boss@x.com")
+    db = _TestingSession()
+    try:
+        user = db.query(User).filter(User.email == "boss@x.com").first()
+        assert user is not None
+        user.is_admin = True
+        db.commit()
+    finally:
+        db.close()
+    r = client.post("/auth/login/", data={"username": "boss@x.com", "password": "secret123"})
+    assert r.status_code == 200
+    client.headers.update({"Authorization": f"Bearer {r.json()['access_token']}"})
     return client
 
 

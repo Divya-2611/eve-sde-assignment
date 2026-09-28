@@ -5,19 +5,19 @@ payments or changes booking status; catalogue writes only.
 
 ## Setup
 
+One admin, from the environment — no signup step:
+
 ```bash
-# .env — either path works:
-ADMIN_EMAILS=admin@example.com            # allowlist (grant at signup/login)
-# or bootstrap a login-ready admin with no signup step:
+# .env
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=change-me-admin
-make up && make seed-docker               # seed creates the admin user
+make up && make seed-docker   # seed creates the admin user
 # log in as admin@example.com → /admin unlocks
 ```
 
-Rights come from the comma-separated allowlist, matched case-insensitively:
-granted at signup, reconciled both ways at login (removing an email demotes
-on next login). Changing the list needs no migration.
+The flag lives on `users.is_admin` (set once by seed). Auth stays a single
+login flow — there is no separate admin password system beyond these
+bootstrap credentials; change them in `.env` for a real deployment.
 
 ## Endpoints (admin JWT; else 401/403)
 

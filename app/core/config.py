@@ -8,7 +8,6 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "change-me-in-production"
     JWT_ALG: str = "HS256"
     ACCESS_TOKEN_MINUTES: int = 60
-    ADMIN_EMAILS: str = ""
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:3000",
