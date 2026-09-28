@@ -12,7 +12,7 @@ Prerequisites: [uv](https://docs.astral.sh/uv/), Docker, Python 3.12, Node 20.
 cp .env.example .env
 make up               # db (:5432) + api (:8000); migrates on boot
 make seed-docker      # demo centres / tests / prices
-make web              # frontend (:5173)
+make web              # frontend (:5173); auto-installs node_modules first run
 make test             # 53 pytest, hermetic — no DB needed
 ```
 

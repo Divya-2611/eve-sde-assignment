@@ -1,4 +1,4 @@
-.PHONY: up dev test lint migrate seed seed-docker down web web-build web-preview
+.PHONY: up dev test lint migrate seed seed-docker down web web-install web-build web-preview
 
 up:
 	docker compose up --build
@@ -26,10 +26,15 @@ seed-docker:
 down:
 	docker compose down
 
-web:
+web-install: frontend/node_modules
+
+frontend/node_modules: frontend/package.json frontend/package-lock.json
+	npm --prefix frontend ci
+
+web: frontend/node_modules
 	npm --prefix frontend run dev
 
-web-build:
+web-build: frontend/node_modules
 	npm --prefix frontend run build
 
 web-preview:
