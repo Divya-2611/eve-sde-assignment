@@ -1,0 +1,9 @@
+.docs/*
+.worktrees/
+__pycache__/
+.venv/
+.env
+frontend/dist/
+frontend/node_modules/
+docs/drafts/
+assignment-brief/
